@@ -869,12 +869,16 @@ rec {
   */
   writeNu =
     name: argsOrScript:
+    let
+      nu = lib.getExe pkgs.nushell;
+      interpreter = "${nu} --no-config-file";
+      check = "${nu} --ide-check";
+      writer = { inherit interpreter check; };
+    in
     if lib.isAttrs argsOrScript && !lib.isDerivation argsOrScript then
-      makeScriptWriter (
-        argsOrScript // { interpreter = "${lib.getExe pkgs.nushell} --no-config-file"; }
-      ) name
+      makeScriptWriter (argsOrScript // writer) name
     else
-      makeScriptWriter { interpreter = "${lib.getExe pkgs.nushell} --no-config-file"; } name argsOrScript;
+      makeScriptWriter writer name argsOrScript;
 
   /**
     Like writeScriptBin but the first line is a shebang to nu
