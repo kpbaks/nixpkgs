@@ -11,6 +11,7 @@
   writableTmpDirAsHomeHook,
   versionCheckHook,
   nix-update-script,
+  withWebServerCapability ? true,
 }:
 
 rustPlatform.buildRustPackage (finalAttrs: {
@@ -23,13 +24,6 @@ rustPlatform.buildRustPackage (finalAttrs: {
     tag = "v${finalAttrs.version}";
     hash = "sha256-VlK9ONyNQAlRqLQM62ZDCv/efJbj66DgM0P9DNhvRvk=";
   };
-
-  # Remove the `vendored_curl` feature in order to link against the libcurl from nixpkgs instead of
-  # the vendored one
-  postPatch = ''
-    substituteInPlace Cargo.toml \
-      --replace-fail ', "vendored_curl"' ""
-  '';
 
   cargoHash = "sha256-P4VabkEFBvj2YkkhXqH/JZp3m3WMKcr0qUMhdorEm1Q=";
 
@@ -56,6 +50,14 @@ rustPlatform.buildRustPackage (finalAttrs: {
   ];
   versionCheckProgramArg = "--version";
   doInstallCheck = true;
+
+  # https://github.com/zellij-org/zellij/blob/v0.43.0/Cargo.toml#L131-L139
+  # `default = ["plugins_from_target", "vendored_curl", "web_server_capability"]`
+  buildNoDefaultFeatures = true;
+  buildFeatures = [
+    "plugins_from_target"
+  ]
+  ++ lib.optional withWebServerCapability "web_server_capability";
 
   # Ensure that we don't vendor curl, but instead link against the libcurl from nixpkgs
   installCheckPhase = lib.optionalString (stdenv.hostPlatform.libc == "glibc") ''
