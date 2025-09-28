@@ -8,6 +8,7 @@
   makeBinaryWrapper,
   rsync,
   gitMinimal,
+  installShellFiles,
 }:
 
 buildNpmPackage rec {
@@ -25,6 +26,7 @@ buildNpmPackage rec {
 
   nativeBuildInputs = [
     makeBinaryWrapper
+    installShellFiles
   ];
 
   postPatch = ''
@@ -64,6 +66,11 @@ buildNpmPackage rec {
           gitMinimal
         ]
       }"
+
+        # FIXME: depends on `/nix/store/59d6srzhh2prddyzwf4dpj8q90k3w3hy-gitlab-ci-local-4.60.1/lib/node_modules/gitlab-ci-local/src/index.js`
+        # existing, which it does not. Probably have to be moved in the install
+      installShellCompletion --cmd gitlab-ci-local \
+        --bash <($out/bin/gitlab-ci-local --completion)
   '';
 
   passthru = {

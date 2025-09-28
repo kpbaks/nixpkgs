@@ -4,20 +4,22 @@
   buildGoModule,
   fetchFromGitHub,
   installShellFiles,
+  nix-update-script,
+  versionCheckHook,
 }:
 
-buildGoModule rec {
+buildGoModule (finalAttrs: {
   pname = "poutine";
-  version = "0.15.2";
+  version = "0.18.0";
 
   src = fetchFromGitHub {
     owner = "boostsecurityio";
     repo = "poutine";
-    tag = "v${version}";
-    hash = "sha256-YBoGsexYT2/lAWEajMVa/xNRBv1R1i0hB6pTAlk43E0=";
+    tag = "v${finalAttrs.version}";
+    hash = "sha256-uvWovwfVH3x/Cr0fjbORWyARYL916Uw/550DuwNH5xo=";
   };
 
-  vendorHash = "sha256-CZLzIGu6jj4JXmKJaWmyeRvcRNjBYecblW47kcsg5Nw=";
+  vendorHash = "sha256-KOGOHqEFa2Ttgs2cyhdCVop94FSw85xxNQsDBV5kKNE=";
 
   ldflags = [
     "-s"
@@ -27,19 +29,25 @@ buildGoModule rec {
   nativeBuildInputs = [ installShellFiles ];
 
   postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
-    installShellCompletion --cmd ${meta.mainProgram} \
-      --bash <($out/bin/${meta.mainProgram} completion bash) \
-      --fish <($out/bin/${meta.mainProgram} completion fish) \
-      --zsh <($out/bin/${meta.mainProgram} completion zsh)
+    installShellCompletion --cmd ${finalAttrs.meta.mainProgram} \
+      --bash <($out/bin/${finalAttrs.meta.mainProgram} completion bash) \
+      --fish <($out/bin/${finalAttrs.meta.mainProgram} completion fish) \
+      --zsh <($out/bin/${finalAttrs.meta.mainProgram} completion zsh)
   '';
 
-  meta = with lib; {
+  # doInstallCheck = true;
+  # nativeInstallCheckInputs = [ versionCheckHook ];
+  # versionCheckProgramArg = "--version";
+
+  passthru.updateScript = nix-update-script { };
+
+  meta = {
     description = "Security scanner that detects misconfigurations and vulnerabilities in build pipelines of repositories";
     homepage = "https://github.com/boostsecurityio/poutine";
-    changelog = "https://github.com/boostsecurityio/poutine/releases/tag/v${version}";
-    license = licenses.asl20;
-    maintainers = with maintainers; [ fab ];
+    changelog = "https://github.com/boostsecurityio/poutine/releases/tag/v${finalAttrs.version}";
+    license = lib.licenses.asl20;
+    maintainers = with lib.maintainers; [ fab ];
     mainProgram = "poutine";
     broken = stdenv.hostPlatform.isDarwin;
   };
-}
+})
