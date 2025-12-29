@@ -301,6 +301,13 @@ buildPythonApplication rec {
 
     cp -r 'shell-integration' "$shell_integration"
 
+    # TODO: install these files
+    # https://sw.kovidgoyal.net/kitty/kittens/desktop-ui/
+    mkdir -p $out/share/xdg-desktop-portal/kitty
+    # kitten desktop-ui enable-portal
+    # /home/kpbaks/.local/share/dbus-1/services/org.freedesktop.impl.portal.desktop.kitty.service
+    # /home/kpbaks/.local/share/xdg-desktop-portal/portals/kitty.portal
+
     runHook postInstall
   '';
 
