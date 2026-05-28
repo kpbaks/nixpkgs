@@ -3,6 +3,7 @@
   stdenv,
   fetchzip,
   makeBinaryWrapper,
+  installShellFiles,
   jre_headless,
   nixosTests,
   callPackage,
@@ -33,6 +34,7 @@ stdenv.mkDerivation (finalAttrs: {
 
   nativeBuildInputs = [
     makeBinaryWrapper
+    installShellFiles
     jre_headless
   ];
 
@@ -78,6 +80,12 @@ stdenv.mkDerivation (finalAttrs: {
     runHook postInstall
   '';
 
+  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+    installShellCompletion --cmd kc.sh \
+      --bash <($out/bin/kc.sh tools completion) \
+      --zsh <($out/bin/kc.sh tools completion)
+  '';
+
   postFixup = ''
     for script in $(find $out/bin -type f -executable); do
       wrapProgram "$script" --set JAVA_HOME ${jre_headless} --prefix PATH : ${jre_headless}/bin
@@ -105,5 +113,6 @@ stdenv.mkDerivation (finalAttrs: {
       krit
       jefferyoo
     ];
+    mainProgram = "kc.sh";
   };
 })
