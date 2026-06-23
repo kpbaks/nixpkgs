@@ -2,6 +2,8 @@
   lib,
   buildGoModule,
   fetchFromGitHub,
+  makeWrapper,
+  kustomize-sops,
   nix-update-script,
 }:
 
@@ -23,6 +25,14 @@ buildGoModule (finalAttrs: {
     "-s"
     "-X=main.version=${finalAttrs.src.rev}"
   ];
+
+  nativeBuildInputs = [
+    makeWrapper
+  ];
+
+  postInstall = ''
+    mv $out/bin/ksops-dry-run $out/bin/ksops
+  '';
 
   passthru.updateScript = nix-update-script { };
 
