@@ -1,15 +1,23 @@
 {
   lib,
   buildNpmPackage,
+  go,
   buildGoModule,
   installShellFiles,
   rustc,
   rustPlatform,
+  rust-bindgen,
+  rust-jemalloc-sys,
+  pkg-config,
+  openssl,
   fetchFromGitHub,
   stdenv,
+  nodejs,
+  pnpm,
+  pnpmConfigHook,
   versionCheckHook,
   nix-update-script,
-  withUi ? true,
+  withUi ? false,
 }:
 
 let
@@ -28,6 +36,12 @@ let
 
     npmDepsHash = lib.fakeHash;
 
+    nativeBuildInputs = [
+      nodejs
+      pnpm
+      pnpmConfigHook
+    ];
+
     installPhase = ''
       mkdir -p $out/share
       mv dist $out/share/
@@ -38,24 +52,34 @@ let
     inherit version src;
     # sourceRoot = "${src.name}/controller";
 
-    vendorHash = lib.fakeHash;
+    postPatch = ''
+          # go 1.27.0
+      substituteInPlace go.mod --replace-fail "go 1.27.0" "go ${go.version}"
+
+    '';
+
+    vendorHash = "sha256-nlBYSRCP12/tyxXqndYmF1sR1Lo3QlnbMH9LrO3O5ok=";
 
     nativeBuildInputs = [
       installShellFiles
-
     ];
 
-    ldflags = [ "-s" ];
+    # export LDFLAGS := -X 'github.com/agentgateway/agentgateway/controller/pkg/version.Version=$(VERSION)' -s -w
+    ldflags = [
+      "-s"
+      "-X github.com/agentgateway/agentgateway/controller/pkg/version.Version=${finalAttrs.version}"
+    ];
 
     subPackages = [ "controller" ];
     # TODO: install completion
 
-    postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
-      installShellCompletion --cmd agctl \
-        --bash <($out/bin/agctl completion bash) \
-        --fish <($out/bin/agctl completion fish) \
-        --zsh <($out/bin/agctl completion zsh)
-    '';
+    # FIXME: cannot find $out/bin/agctl
+    # postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+    #   installShellCompletion --cmd agctl \
+    #     --bash <($out/bin/agctl completion bash) \
+    #     --fish <($out/bin/agctl completion fish) \
+    #     --zsh <($out/bin/agctl completion zsh)
+    # '';
   });
 in
 
@@ -66,13 +90,15 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   cargoHash = "sha256-5Hswt0WgdBPvJns21MCJPDLiL18GM3Wf2++Dl+r9ZEs=";
 
+  # TODO: always pass jemalloc flag
   cargoFeatures = lib.optional withUi "ui";
-
-  env.AGENTGATEWAY_BUILD_buildVersion = finalAttrs.version;
-  env.AGENTGATEWAY_BUILD_buildGitRevision = finalAttrs.src.rev;
-  env.AGENTGATEWAY_BUILD_RUSTC_VERSION = rustc.version;
-  env.AGENTGATEWAY_BUILD_PROFILE_NAME = "release";
-  env.AGENTGATEWAY_BUILD_TARGET = "";
+  env = {
+    AGENTGATEWAY_BUILD_buildVersion = finalAttrs.version;
+    AGENTGATEWAY_BUILD_buildGitRevision = finalAttrs.src.rev;
+    AGENTGATEWAY_BUILD_RUSTC_VERSION = rustc.version;
+    AGENTGATEWAY_BUILD_PROFILE_NAME = "release"; # TODO: find variable for this
+    AGENTGATEWAY_BUILD_TARGET = "";
+  }; # TODO: refer to `stdenv.hostPlatform.system`
 
   # rustPlatform.buildRustPackage uses this attribute for ... # TODO does it ?
   postPatch = ''
@@ -94,14 +120,15 @@ rustPlatform.buildRustPackage (finalAttrs: {
   # ui:
   # 	cd ui && corepack pnpm install --frozen-lockfile && corepack pnpm build
 
-  #   # vendorHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-
-  # buildInputs = lib.optionals stdenv.isLinux [
-  #   xorg.libX11
-  # ];
-
-  # ldflags = [ "-s" ];
-  # export LDFLAGS := -X 'github.com/agentgateway/agentgateway/controller/pkg/version.Version=$(VERSION)' -s -w
+  nativeBuildInputs = [
+    rust-bindgen # for aws-lc-sys@0.22.0
+    rustPlatform.bindgenHook
+    pkg-config
+  ];
+  buildInputs = [
+    rust-jemalloc-sys
+    openssl
+  ];
 
   postInstall = ''
     mkdir -p $out/bin
